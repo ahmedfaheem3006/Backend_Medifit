@@ -1,4 +1,3 @@
-require("dotenv").config();
 const express = require("express");
 const mongoose = require("mongoose");
 const createInitialAdmin = require("./Controllers/CreateInitialadmin");
@@ -21,7 +20,7 @@ const newsletterRoutes = require("./routes/newsletter");
 const adminRoutes = require("./middlewares/admin");
 const path = require("path");
 const bodyParser = require("body-parser");
-
+require("dotenv").config();
 
 // Set DNS servers
 dns.setServers(["8.8.8.8", "8.8.4.4"]);
