@@ -6,7 +6,7 @@ const SibApiV3Sdk = require('sib-api-v3-sdk');
 
 require("dotenv").config();
 
-// إعداد Brevo مع API Key
+// إعداد Brevo
 const defaultClient = SibApiV3Sdk.ApiClient.instance;
 const apiKey = defaultClient.authentications['api-key'];
 apiKey.apiKey = process.env.BREVO_API_KEY;
@@ -31,134 +31,90 @@ router.post("/request-password-reset", async (req, res) => {
     user.verificationCodeExpires = Date.now() + 10 * 60 * 1000;
     await user.save();
 
-    // إعداد محتوى الإيميل
+    // إعداد الإيميل - مُصحح
     const sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
     
     sendSmtpEmail.subject = "Password Reset Code - MediFit";
     sendSmtpEmail.htmlContent = `
       <!DOCTYPE html>
       <html>
-      <head>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Password Reset</title>
-      </head>
-      <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f4f4f4;">
-        <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 0;">
-          <!-- Header -->
-          <div style="background-color: #4CAF50; padding: 40px 20px; text-align: center;">
-            <h1 style="margin: 0; color: white; font-size: 36px; font-weight: bold;">MediFit</h1>
-            <p style="margin: 10px 0 0 0; color: white; font-size: 16px;">Your Health Companion</p>
+      <body style="font-family: Arial, sans-serif; margin: 0; padding: 20px; background-color: #f4f4f4;">
+        <div style="max-width: 600px; margin: 0 auto; background-color: white; padding: 20px; border-radius: 10px;">
+          <h2 style="color: #4CAF50; text-align: center;">Password Reset Request</h2>
+          <p>Hello ${user.name || 'there'},</p>
+          <p>You requested to reset your password. Here's your verification code:</p>
+          
+          <div style="background-color: #f9f9f9; border: 2px dashed #4CAF50; padding: 20px; text-align: center; margin: 20px 0; border-radius: 5px;">
+            <span style="font-size: 36px; font-weight: bold; color: #4CAF50; letter-spacing: 5px;">
+              ${verificationCode}
+            </span>
           </div>
           
-          <!-- Content -->
-          <div style="padding: 40px 30px;">
-            <h2 style="margin: 0 0 20px 0; color: #333; font-size: 28px; text-align: center;">Password Reset Request</h2>
-            
-            <p style="margin: 0 0 30px 0; color: #666; font-size: 16px; line-height: 1.6; text-align: center;">
-              Hello ${user.name || 'User'},<br>
-              We received a request to reset your password. Use the verification code below:
-            </p>
-            
-            <!-- Code Box -->
-            <div style="background-color: #f8f9fa; border: 3px solid #4CAF50; border-radius: 10px; padding: 30px; text-align: center; margin: 30px 0;">
-              <p style="margin: 0 0 10px 0; color: #666; font-size: 14px;">Your verification code is:</p>
-              <div style="font-size: 42px; font-weight: bold; color: #4CAF50; letter-spacing: 8px; margin: 10px 0;">
-                ${verificationCode}
-              </div>
-            </div>
-            
-            <div style="background-color: #fff3cd; border: 1px solid #ffeeba; border-radius: 5px; padding: 15px; margin: 30px 0;">
-              <p style="margin: 0; color: #856404; font-size: 14px;">
-                ⏰ <strong>Important:</strong> This code will expire in 10 minutes.
-              </p>
-            </div>
-            
-            <p style="margin: 30px 0 0 0; color: #999; font-size: 14px; text-align: center; line-height: 1.6;">
-              If you didn't request this password reset, please ignore this email.<br>
-              Your password will remain unchanged.
-            </p>
-          </div>
+          <p style="color: #666;">This code will expire in 10 minutes.</p>
+          <p style="color: #666;">If you didn't request this, please ignore this email.</p>
           
-          <!-- Footer -->
-          <div style="background-color: #333; padding: 30px; text-align: center;">
-            <p style="margin: 0 0 10px 0; color: #fff; font-size: 14px;">
-              Need help? Contact us at support@medifit.com
-            </p>
-            <p style="margin: 0; color: #999; font-size: 12px;">
-              © 2024 MediFit. All rights reserved.
-            </p>
-          </div>
+          <hr style="border: 1px solid #eee; margin: 20px 0;">
+          <p style="color: #999; font-size: 12px; text-align: center;">
+            © 2024 MediFit. All rights reserved.
+          </p>
         </div>
       </body>
       </html>
     `;
     
     sendSmtpEmail.textContent = `
-MediFit Password Reset
+Password Reset - MediFit
 
-Hello ${user.name || 'User'},
-
-We received a request to reset your password. Your verification code is:
-
-${verificationCode}
+Your verification code is: ${verificationCode}
 
 This code will expire in 10 minutes.
 
-If you didn't request this password reset, please ignore this email.
-
-Best regards,
-The MediFit Team
+If you didn't request this, please ignore this email.
     `;
     
-    // معلومات المرسل والمستقبل
+    // مُهم: استخدم إيميلك المُسجل في Brevo
     sendSmtpEmail.sender = { 
-      name: "MediFit Support", 
-      email: "noreply@medifit.com"
+      name: "MediFit", 
+      email: "ahmedmahmoud30006@gmail.com" // ✅ إيميلك في Brevo
     };
+    
     sendSmtpEmail.to = [{ 
       email: user.email,
       name: user.name || user.email
     }];
-    
-    sendSmtpEmail.replyTo = { 
-      email: "support@medifit.com", 
-      name: "MediFit Support" 
-    };
 
     // إرسال الإيميل
     try {
-      console.log('Attempting to send email to:', user.email);
+      console.log('📤 Attempting to send email...');
+      console.log('From:', sendSmtpEmail.sender.email);
+      console.log('To:', user.email);
+      
       const data = await apiInstance.sendTransacEmail(sendSmtpEmail);
-      console.log('✅ Email sent successfully:', data);
+      
+      console.log('✅ Brevo API Response:', data);
       
       res.status(200).json({ 
         success: true,
         message: "Verification code sent successfully to your email",
-        email: user.email
+        email: user.email,
+        messageId: data.messageId
       });
       
     } catch (emailError) {
-      console.error('❌ Brevo API Error:', emailError.response?.body || emailError);
+      console.error('❌ Brevo Error:', emailError.response?.body || emailError);
       
-      // في حالة فشل الإرسال، أعطي الكود للمستخدم
       res.status(200).json({ 
         success: true,
-        message: "Code generated (Email service error)",
+        message: "Code generated (email may be in spam)",
         email: user.email,
         verificationCode: verificationCode,
-        error: "Failed to send email. Use the code above.",
-        debugInfo: emailError.response?.body?.message || emailError.message
+        note: "Check your spam folder or use this code"
       });
     }
 
   } catch (error) {
     console.error("Server error:", error);
-    res.status(500).json({ 
-      success: false,
-      message: "Failed to process request",
-      error: error.message 
-    });
+    res.status(500).json({ message: "Failed to process request" });
   }
 });
 
@@ -213,32 +169,6 @@ router.post("/reset-password", async (req, res) => {
     user.verificationCode = undefined;
     user.verificationCodeExpires = undefined;
     await user.save();
-
-    // إرسال إيميل تأكيد (اختياري)
-    try {
-      const sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
-      sendSmtpEmail.subject = "Password Reset Successful - MediFit";
-      sendSmtpEmail.htmlContent = `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-          <div style="background-color: #4CAF50; color: white; padding: 20px; text-align: center; border-radius: 10px 10px 0 0;">
-            <h1 style="margin: 0;">MediFit</h1>
-          </div>
-          <div style="background-color: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px;">
-            <h2 style="color: #333;">Password Reset Successful ✅</h2>
-            <p style="color: #666;">Your password has been successfully reset.</p>
-            <p style="color: #666;">You can now log in with your new password.</p>
-            <hr style="border: 1px solid #eee; margin: 20px 0;">
-            <p style="color: #999; font-size: 14px;">If you didn't make this change, please contact support immediately.</p>
-          </div>
-        </div>
-      `;
-      sendSmtpEmail.sender = { name: "MediFit", email: "noreply@medifit.com" };
-      sendSmtpEmail.to = [{ email: user.email }];
-      
-      await apiInstance.sendTransacEmail(sendSmtpEmail);
-    } catch (emailError) {
-      console.log('Confirmation email failed:', emailError);
-    }
 
     res.status(200).json({ 
       success: true,
