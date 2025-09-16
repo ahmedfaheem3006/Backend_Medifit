@@ -2,12 +2,18 @@ const express = require("express");
 const router = express.Router();
 const User = require("../models/User");
 const bcrypt = require("bcryptjs");
-const { Resend } = require('resend');
+const nodemailer = require('nodemailer');
 
 require("dotenv").config();
 
-// إنشاء instance من Resend
-const resend = new Resend(process.env.RESEND_API_KEY);
+// إنشاء transporter لـ Gmail
+const transporter = nodemailer.createTransporter({
+  service: 'gmail',
+  auth: {
+    user: process.env.EMAIL_USER, // your-email@gmail.com
+    pass: process.env.EMAIL_PASS  // App Password (ليس كلمة المرور العادية)
+  }
+});
 
 router.post("/request-password-reset", async (req, res) => {
   try {
@@ -27,11 +33,11 @@ router.post("/request-password-reset", async (req, res) => {
     user.verificationCodeExpires = Date.now() + 10 * 60 * 1000;
     await user.save();
 
-    // إرسال البريد باستخدام Resend
-    const { data, error } = await resend.emails.send({
-      from: 'MediFit <onboarding@resend.dev>', // استخدم هذا للتجربة
-      to: [user.email],
-      subject: 'Password Reset Code',
+    // إرسال البريد باستخدام Nodemailer
+    const mailOptions = {
+      from: process.env.EMAIL_USER,
+      to: user.email,
+      subject: 'Password Reset Code - MediFit',
       html: `
         <div style="font-family: Arial, sans-serif; padding: 20px;">
           <h2>Password Reset Request</h2>
@@ -42,12 +48,9 @@ router.post("/request-password-reset", async (req, res) => {
           <p>This code will expire in 10 minutes.</p>
         </div>
       `
-    });
+    };
 
-    if (error) {
-      console.error('Resend error:', error);
-      return res.status(500).json({ message: "Failed to send email" });
-    }
+    await transporter.sendMail(mailOptions);
 
     res.status(200).json({ 
       message: "Verification code sent successfully",
@@ -56,7 +59,7 @@ router.post("/request-password-reset", async (req, res) => {
 
   } catch (error) {
     console.error("Error:", error);
-    res.status(500).json({ message: "Failed to process request" });
+    res.status(500).json({ message: "Failed to process request", error: error.message });
   }
 });
 
