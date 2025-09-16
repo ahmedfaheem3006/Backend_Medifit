@@ -11,19 +11,30 @@ let transporter = null;
 
 try {
   nodemailer = require('nodemailer');
+  console.log('Nodemailer loaded successfully');
   
-  // إنشاء transporter فقط إذا تم تحميل nodemailer بنجاح
-  if (nodemailer && process.env.EMAIL_USER && process.env.EMAIL_PASS) {
+  // إنشاء transporter مع الـ App Password
+  if (nodemailer) {
     transporter = nodemailer.createTransporter({
       service: 'gmail',
       auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS
+        user: 'ahmedfaheem3006@gmail.com', 
+        pass: 'pktydrreixfwlup' 
+      }
+    });
+    
+    // التحقق من الاتصال
+    transporter.verify(function(error, success) {
+      if (error) {
+        console.log('Email configuration error:', error);
+        transporter = null;
+      } else {
+        console.log('Email server is ready to send messages');
       }
     });
   }
 } catch (error) {
-  console.log('Nodemailer not available, using fallback method');
+  console.log('Nodemailer not available:', error.message);
 }
 
 router.post("/request-password-reset", async (req, res) => {
@@ -48,52 +59,63 @@ router.post("/request-password-reset", async (req, res) => {
     if (transporter) {
       try {
         const mailOptions = {
-          from: process.env.EMAIL_USER,
+          from: '"MediFit Support" <ahmedfaheem3006@gmail.com>', // ضع إيميلك هنا
           to: user.email,
           subject: 'Password Reset Code - MediFit',
+          text: `Your password reset code is: ${verificationCode}. This code will expire in 10 minutes.`,
           html: `
-            <div style="font-family: Arial, sans-serif; padding: 20px;">
-              <h2>Password Reset Request</h2>
-              <p>Your verification code is:</p>
-              <div style="background-color: #f0f0f0; padding: 20px; text-align: center; font-size: 32px; font-weight: bold; letter-spacing: 5px;">
-                ${verificationCode}
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+              <div style="background-color: #4CAF50; color: white; padding: 20px; text-align: center;">
+                <h1>MediFit</h1>
               </div>
-              <p>This code will expire in 10 minutes.</p>
+              <div style="padding: 30px; background-color: #f5f5f5;">
+                <h2 style="color: #333;">Password Reset Request</h2>
+                <p style="color: #666; font-size: 16px;">We received a request to reset your password. Use the code below:</p>
+                <div style="background-color: white; border: 2px dashed #4CAF50; padding: 20px; text-align: center; margin: 20px 0;">
+                  <span style="font-size: 36px; font-weight: bold; color: #4CAF50; letter-spacing: 5px;">
+                    ${verificationCode}
+                  </span>
+                </div>
+                <p style="color: #666; font-size: 14px;">⏰ This code will expire in 10 minutes.</p>
+                <p style="color: #666; font-size: 14px;">If you didn't request this, please ignore this email.</p>
+              </div>
+              <div style="background-color: #333; color: white; padding: 20px; text-align: center; font-size: 12px;">
+                © 2024 MediFit. All rights reserved.
+              </div>
             </div>
           `
         };
 
-        await transporter.sendMail(mailOptions);
+        const info = await transporter.sendMail(mailOptions);
+        console.log('Email sent successfully:', info.messageId);
         
         res.status(200).json({ 
-          message: "Verification code sent successfully",
+          message: "Verification code sent successfully to your email",
           email: user.email 
         });
       } catch (emailError) {
         console.error("Email sending failed:", emailError);
-        // Fallback
+        
         res.status(200).json({ 
-          message: "Code generated (email service unavailable)",
+          message: "Code generated (email failed)",
           email: user.email,
           verificationCode: verificationCode,
-          note: "Please use this code to reset your password"
+          error: emailError.message
         });
       }
     } else {
-      // إذا لم يكن nodemailer متاحاً
       console.log(`Password reset code for ${email}: ${verificationCode}`);
       
       res.status(200).json({ 
-        message: "Verification code generated successfully",
+        message: "Email service not available",
         email: user.email,
-        verificationCode: verificationCode,
-        note: "Email service not configured. Use this code to reset password."
+        verificationCode: verificationCode
       });
     }
 
   } catch (error) {
     console.error("Error:", error);
-    res.status(500).json({ message: "Failed to process request" });
+    res.status(500).json({ message: "Failed to process request", error: error.message });
   }
 });
 
