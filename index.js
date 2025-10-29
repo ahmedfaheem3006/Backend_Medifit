@@ -249,7 +249,7 @@ passport.use(
     {
       clientID: process.env.GOOGLE_CLIENT_ID,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-      callbackURL: "https://medifitbackend-production.up.railway.app/auth/google/callback",
+      callbackURL: "https://backend-medifit.onrender.com/auth/google/callback",
       proxy: true
     },
     async (accessToken, refreshToken, profile, done) => {
