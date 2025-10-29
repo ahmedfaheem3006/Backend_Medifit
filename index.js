@@ -42,10 +42,10 @@ const connectdb = async () => {
       process.env.MONGODB_URI ||
         "mongodb+srv://Medifit:m7j0pADbeL4nMXk3@medifit.x3ym908.mongodb.net/?retryWrites=true&w=majority&appName=Medifit",
       {
-        serverSelectionTimeoutMS: 30000,
-        socketTimeoutMS: 45000,
+        serverSelectionTimeoutMS: 10000, // قلل من 30000 إلى 10000
+        socketTimeoutMS: 20000,          // قلل من 45000 إلى 20000
         maxPoolSize: 10,
-        minPoolSize: 5,
+        minPoolSize: 2,                   // قلل من 5 إلى 2
       }
     );
 
@@ -60,12 +60,11 @@ const connectdb = async () => {
     console.error("❌ MongoDB connection error:", error);
     isConnected = false;
     
-    // في Production، أوقف التطبيق إذا فشل الاتصال
-    if (process.env.NODE_ENV === 'production') {
-      process.exit(1);
-    }
-    // في Development، حاول مرة أخرى
-    setTimeout(connectdb, 5000);
+    // لا توقف التطبيق في Production، فقط سجل الخطأ
+    console.log("⚠️ Server will continue without database connection");
+    
+    // حاول مرة أخرى بعد 10 ثواني
+    setTimeout(connectdb, 8000);
   }
 };
 
@@ -87,8 +86,7 @@ mongoose.connection.on("disconnected", () => {
   setTimeout(connectdb, 5000);
 });
 
-// بدء الاتصال بقاعدة البيانات فوراً
-connectdb();
+
 
 // Serve static files
 app.use("/uploads", express.static(path.join(__dirname, "public/uploads")));
@@ -116,7 +114,7 @@ const corsOptions = {
 };
 
 // تطبيق CORS
-app.use(cors(corsOptions));
+// app.use(cors(corsOptions));
 
 // مهم جداً: handle لـ preflight requests
 app.options('*', cors(corsOptions));
@@ -370,12 +368,26 @@ app.use("*", (req, res) => {
   });
 });
 
-// Start server
-app.listen(PORT, "0.0.0.0", () => {
+const server = app.listen(PORT, "0.0.0.0", () => {
   console.log(`✅ Server is running on http://0.0.0.0:${PORT}`);
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`🔍 Render will detect port: ${PORT}`);
 }).on('error', (error) => {
   console.error("❌ Server failed to start:", error);
+  process.exit(1); // أوقف التطبيق إذا فشل السيرفر
+});
+
+// بدء الاتصال بقاعدة البيانات فوراً
+connectdb();
+
+process.on('SIGTERM', () => {
+  console.log('SIGTERM received, closing server gracefully');
+  server.close(() => {
+    mongoose.connection.close(false, () => {
+      console.log('MongoDB connection closed');
+      process.exit(0);
+    });
+  });
 });
 
 module.exports = app;
