@@ -368,26 +368,55 @@ app.use("*", (req, res) => {
   });
 });
 
+// ✅ ابدأ السيرفر فوراً
 const server = app.listen(PORT, "0.0.0.0", () => {
   console.log(`✅ Server is running on http://0.0.0.0:${PORT}`);
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`🔍 Render will detect port: ${PORT}`);
+  console.log(`🔍 Port ${PORT} is open for Render`);
 }).on('error', (error) => {
   console.error("❌ Server failed to start:", error);
-  process.exit(1); // أوقف التطبيق إذا فشل السيرفر
+  process.exit(1);
 });
 
-// بدء الاتصال بقاعدة البيانات فوراً
+// ✅ بعد ذلك اتصل بقاعدة البيانات
 connectdb();
 
-process.on('SIGTERM', () => {
-  console.log('SIGTERM received, closing server gracefully');
-  server.close(() => {
-    mongoose.connection.close(false, () => {
+// ✅ Graceful shutdown (الكود المُصلح)
+const gracefulShutdown = async (signal) => {
+  console.log(`${signal} received, closing server gracefully`);
+  
+  server.close(async () => {
+    console.log('HTTP server closed');
+    
+    try {
+      await mongoose.connection.close(); // بدون callback
       console.log('MongoDB connection closed');
       process.exit(0);
-    });
+    } catch (error) {
+      console.error('Error closing MongoDB connection:', error);
+      process.exit(1);
+    }
   });
+
+  // Timeout للإغلاق القسري بعد 10 ثواني
+  setTimeout(() => {
+    console.error('Forcing shutdown after timeout');
+    process.exit(1);
+  }, 10000);
+};
+
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+
+// ✅ Handle uncaught errors
+process.on('uncaughtException', (error) => {
+  console.error('Uncaught Exception:', error);
+  gracefulShutdown('uncaughtException');
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+  gracefulShutdown('unhandledRejection');
 });
 
 module.exports = app;
