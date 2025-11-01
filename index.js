@@ -42,10 +42,10 @@ const connectdb = async () => {
       process.env.MONGODB_URI ||
         "mongodb+srv://Medifit:m7j0pADbeL4nMXk3@medifit.x3ym908.mongodb.net/?retryWrites=true&w=majority&appName=Medifit",
       {
-        serverSelectionTimeoutMS: 10000, // قلل من 30000 إلى 10000
-        socketTimeoutMS: 20000,          // قلل من 45000 إلى 20000
-        maxPoolSize: 10,
-        minPoolSize: 2,                   // قلل من 5 إلى 2
+        serverSelectionTimeoutMS: 5000, // قلل من 30000 إلى 10000
+        socketTimeoutMS: 15000,          // قلل من 45000 إلى 20000
+        maxPoolSize: 20,
+        minPoolSize: 5,                   // قلل من 5 إلى 2
       }
     );
 
